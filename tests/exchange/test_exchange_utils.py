@@ -299,6 +299,13 @@ def test_amount_to_precision(
         (2.34559, DECIMAL_PLACES, 4, 2.3455, ROUND_DOWN),
         (2.9901, DECIMAL_PLACES, 3, 2.990, ROUND_DOWN),
         (0.00299, DECIMAL_PLACES, 3, 0.002, ROUND_DOWN),
+        # Prices already on the tick must not move (float math: 0.07 * 100 = 7.000000000000001)
+        (0.07, DECIMAL_PLACES, 2, 0.07, ROUND_UP),
+        (0.14, DECIMAL_PLACES, 2, 0.14, ROUND_UP),
+        (0.29, DECIMAL_PLACES, 2, 0.29, ROUND_DOWN),
+        (4.35, DECIMAL_PLACES, 2, 4.35, ROUND_DOWN),
+        (0.071, DECIMAL_PLACES, 2, 0.08, ROUND_UP),
+        (0.299, DECIMAL_PLACES, 2, 0.29, ROUND_DOWN),
         # Tests for DECIMAL_PLACES, ROUND
         (2.345600000000001, DECIMAL_PLACES, 4, 2.3456, ROUND),
         (2.345551, DECIMAL_PLACES, 4, 2.3456, ROUND),
@@ -383,6 +390,17 @@ def test_price_to_precision(price, precision_mode, precision, expected, rounding
         assert result == expected
     else:
         assert isnan(result)
+
+
+@pytest.mark.parametrize("rounding_mode", [ROUND_UP, ROUND_DOWN])
+@pytest.mark.parametrize("precision_mode,precision", [(DECIMAL_PLACES, 2), (TICK_SIZE, 0.01)])
+def test_price_to_precision_exact_price(precision_mode, precision, rounding_mode):
+    # A price that is already on the tick (e.g. an already rounded stoploss) must not be
+    # moved by rounding it up or down again.
+    for cents in range(1, 1000):
+        price = cents / 100
+        rounded = price_to_precision(price, precision, precision_mode, rounding_mode=rounding_mode)
+        assert rounded == price
 
 
 @pytest.mark.parametrize(

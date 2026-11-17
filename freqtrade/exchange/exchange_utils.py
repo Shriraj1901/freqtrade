@@ -4,7 +4,8 @@ Exchange support utils
 
 import inspect
 from datetime import UTC, datetime, timedelta
-from math import ceil, floor, isnan
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from math import isnan
 from typing import Any
 
 import ccxt
@@ -369,11 +370,13 @@ def price_to_precision(
             return price
         elif precisionMode == DECIMAL_PLACES:
             ndigits = round(price_precision)
-            ticks = price * (10**ndigits)
+            # Decimal arithmetic - float multiplication moves exact prices off the tick
+            # (0.07 * 100 = 7.000000000000001), which would round them up / down by a full tick.
+            ticks = Decimal(str(price)).scaleb(ndigits)
             if rounding_mode == ROUND_UP:
-                return ceil(ticks) / (10**ndigits)
+                return float(ticks.to_integral_value(ROUND_CEILING).scaleb(-ndigits))
             if rounding_mode == ROUND_DOWN:
-                return floor(ticks) / (10**ndigits)
+                return float(ticks.to_integral_value(ROUND_FLOOR).scaleb(-ndigits))
 
             raise ValueError(f"Unknown rounding_mode {rounding_mode}")
         elif precisionMode == SIGNIFICANT_DIGITS and rounding_mode in (ROUND_UP, ROUND_DOWN):
